@@ -1,0 +1,15 @@
+name: radar-rt-validation
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - numpy
+  - geopy
+  - pip
+  - pip:
+    - pandas
+    - matplotlib
+    - seaborn
+    - requests
+    - json
+    - sklearn
