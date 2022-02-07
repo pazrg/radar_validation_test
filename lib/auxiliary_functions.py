@@ -27,7 +27,7 @@ def bbox(center, radious):
 
 def sources_lookup(period, variable, center, radious):
     box = bbox(center, radious)
-    url = 'https://api.socib.es/data-sources/?bbox=%s&initial_datetime=%s&end_datetime=%s&standard_name=%s&limit=100&subtype=deployment'%(box,period[0], period[1],variable)
+    url = 'https://api.socib.es/data-sources/?bbox=%s&initial_datetime=%s&end_datetime=%s&standard_name=%s&limit=50&subtype=deployment'%(box,period[0], period[1],variable)
     request = requests.get(url, headers=headers)
     response = json.loads(request.text)
     print('matches:'+str(response['count']))
@@ -54,15 +54,11 @@ def distance(lat2,lon2,center):
     destiny = geopy.Point(lat2, lon2)
     return geopy.distance.distance(origin, destiny).m
 
-def sources_timeseries(sources, standard_name, resolution, center, radious, qc_max, period, parse_units, parse_series):
+def sources_timeseries(sources, standard_name, resolution, center, qc_max, period, parse_units, parse_series):
     full_dfs = []
     for s in sources:
         feature_types = ' '.join(s['feature_types'])
-        if 'grid' in feature_types:
-            box = bbox(center, 2)
-            url = 'https://api.socib.es/data-sources/%s/data/?initial_datetime=%s&end_datetime=%s&processing_level=L1*&bbox=%s&resample_how=mean&resample_rule=%s&standard_name=%s'%(s['id'], period[0], period[1], box, resolution, standard_name)
-        else:
-            url = 'https://api.socib.es/data-sources/%s/data/?initial_datetime=%s&end_datetime=%s&processing_level=L1*&elevation_range=-5,0&resample_how=mean&resample_rule=%s&standard_name=%s'%(s['id'],  period[0], period[1], resolution, standard_name)
+        url = 'https://api.socib.es/data-sources/%s/data/?initial_datetime=%s&end_datetime=%s&processing_level=L1*&resample_how=mean&resample_rule=%s&standard_name=%s'%(s['id'], period[0], period[1], resolution, standard_name)
         if qc_max is not None:
             url = url +'&max_qc_value='+qc_max
         try:
@@ -77,10 +73,10 @@ def sources_timeseries(sources, standard_name, resolution, center, radious, qc_m
     return pd.concat(dfs, axis=1)
 
 
-def qcpercentage(sources, standard_name, resolution, center, radious, qc_max, period, parse_units, parse_series):
+def qcpercentage(sources, standard_name, resolution, center, qc_max, period, parse_units, parse_series):
     buffer = {}
-    timeseries_qcmax2 = sources_timeseries(sources, standard_name, resolution, center, radious, qc_max, period, parse_units, parse_series)
-    timeseries_qcmax9 = sources_timeseries(sources, standard_name, resolution, center, radious, None, period, parse_units, parse_series)
+    timeseries_qcmax2 = sources_timeseries(sources, standard_name, resolution, center, qc_max, period, parse_units, parse_series)
+    timeseries_qcmax9 = sources_timeseries(sources, standard_name, resolution, center, None, period, parse_units, parse_series)
     cols1 = timeseries_qcmax2.columns
     cols2 = timeseries_qcmax9.columns
     for i in range(0, len(cols1)):
@@ -98,9 +94,12 @@ def mse(timeseries):
     for i in cols:
         values = []
         for j in cols:
-            subset = timeseries.loc[:, [i,j]]
-            subset.dropna(inplace = True)
-            values.append(mean_squared_error(subset[i], subset[j]))
+            try:
+                subset = timeseries.loc[:, [i,j]]
+                subset.dropna(inplace = True)
+                values.append(mean_squared_error(subset[i], subset[j]))
+            except:
+                values.append(np.nan)
         df = pd.DataFrame([values], columns=cols, index = [i])
         dfs.append(df)
     return pd.concat(dfs)
