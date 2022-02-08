@@ -1,6 +1,6 @@
 import requests
 import json
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 import geopy
 from geopy.distance import geodesic
 import pandas as pd
@@ -82,9 +82,8 @@ def qcpercentage(sources, standard_name, resolution, center, qc_max, period, par
     for i in range(0, len(cols1)):
         qc9_nonans = timeseries_qcmax9.describe()[cols2[i]]['count']
         qc2_nonans = timeseries_qcmax2.describe()[cols1[i]]['count']
-        val = (qc2_nonans*100)/(qc9_nonans)
         name = '|'.join(cols1[i].split('|')[:2])
-        buffer[name] = val 
+        buffer[name] = (qc2_nonans*100)/(qc9_nonans) 
     df = pd.DataFrame(buffer, index=['%QC=1,2'])
     return df
 
@@ -97,7 +96,24 @@ def mse(timeseries):
             try:
                 subset = timeseries.loc[:, [i,j]]
                 subset.dropna(inplace = True)
-                values.append(mean_squared_error(subset[i], subset[j]))
+                values.append(mean_squared_error(subset[i], subset[j], squared = True))
+            except:
+                values.append(np.nan)
+        df = pd.DataFrame([values], columns=cols, index = [i])
+        dfs.append(df)
+    return pd.concat(dfs)
+
+
+def mae(timeseries):
+    dfs = []
+    cols = list(timeseries.columns)
+    for i in cols:
+        values = []
+        for j in cols:
+            try:
+                subset = timeseries.loc[:, [i,j]]
+                subset.dropna(inplace = True)
+                values.append(mean_absolute_error(subset[i], subset[j]))
             except:
                 values.append(np.nan)
         df = pd.DataFrame([values], columns=cols, index = [i])
